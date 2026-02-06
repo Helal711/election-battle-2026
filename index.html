@@ -3,65 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ভোটের লড়াই - মোবাইল সংস্করণ</title>
+    <title>ভোটের লড়াই - কাস্টম টাইমার</title>
     <style>
         body {
-            margin: 0;
-            padding: 0;
+            margin: 0; padding: 0;
             background-color: #2e7d32;
             font-family: 'Arial', sans-serif;
             overflow: hidden;
             touch-action: manipulation;
         }
+        /* মেনু স্ক্রিন */
+        #start-menu {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+            text-align: center;
+        }
         #ui-layer {
             position: absolute;
-            top: 10px;
-            width: 100%;
-            text-align: center;
-            color: white;
-            z-index: 10;
-            pointer-events: none;
+            top: 10px; width: 100%;
+            text-align: center; color: white;
+            z-index: 10; pointer-events: none;
+            display: none;
         }
         .score-board {
-            background: rgba(0, 0, 0, 0.5);
-            padding: 10px;
-            border-radius: 20px;
-            display: inline-block;
-            font-size: 18px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px 15px; border-radius: 20px;
+            display: inline-block; font-size: 16px;
+            border: 1px solid #ffeb3b;
         }
-        canvas {
-            display: block;
-            background: linear-gradient(#81c784, #2e7d32);
-        }
+        .timer-box { display: block; margin-top: 5px; font-size: 22px; color: #ffeb3b; font-weight: bold; }
+        canvas { display: block; background: linear-gradient(#81c784, #2e7d32); }
         #game-over {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85);
-            color: white;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 20;
-            text-align: center;
-            padding: 20px;
+            background: rgba(0,0,0,0.9);
+            color: white; flex-direction: column;
+            justify-content: center; align-items: center;
+            z-index: 20; text-align: center; padding: 20px;
         }
-        button {
-            padding: 15px 30px;
-            font-size: 20px;
-            background: #ffeb3b;
-            border: none;
-            border-radius: 30px;
-            margin-top: 20px;
-            font-weight: bold;
+        select, button {
+            padding: 15px 30px; font-size: 18px;
+            border-radius: 30px; border: none;
+            margin-top: 15px; font-weight: bold; cursor: pointer;
         }
+        select { background: white; width: 200px; text-align: center; }
+        button { background: #ffeb3b; color: #333; }
     </style>
 </head>
 <body>
 
+    <div id="start-menu">
+        <h1>ভোটের লড়াই ২০২৬</h1>
+        <p>সময় নির্বাচন করুন (সেকেন্ড):</p>
+        <select id="time-select">
+            <option value="30">৩০ সেকেন্ড</option>
+            <option value="60">৬০ সেকেন্ড (১ মিনিট)</option>
+            <option value="90">৯০ সেকেন্ড</option>
+            <option value="120">১২০ সেকেন্ড (২ মিনিট)</option>
+        </select>
+        <button onclick="startGame()">গেম শুরু করুন</button>
+    </div>
+
     <div id="ui-layer">
         <div class="score-board">
             মির্জা আব্বাস: <span id="m-score">০</span> | পাটোয়ারী: <span id="p-score">০</span>
+            <div class="timer-box">সময় বাকি: <span id="timer">0</span> সে.</div>
         </div>
     </div>
 
@@ -69,23 +83,19 @@
 
     <div id="game-over">
         <h1 id="winner-text"></h1>
+        <p id="final-score-details"></p>
         <button onclick="location.reload()">আবার খেলুন</button>
     </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        
-        // ডিসপ্লে সাইজ সেটআপ (মোবাইল রেশিও)
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        let mScore = 0;
-        let pScore = 0;
-        let isGameOver = false;
-        const targetScore = 50;
+        let mScore = 0, pScore = 0, timeLeft = 0, isGameOver = false;
+        let timerInterval;
 
-        // আপনার ছবিগুলো লোড করা
         const imgMirza = new Image(); imgMirza.src = 'mirza_abbas.png';
         const imgPatwary = new Image(); imgPatwary.src = 'patwary.png';
         const imgDhanerShish = new Image(); imgDhanerShish.src = 'dhaner_shish.png';
@@ -95,31 +105,40 @@
         const objects = [];
         const speed = 4;
 
+        function startGame() {
+            timeLeft = parseInt(document.getElementById('time-select').value);
+            document.getElementById('timer').innerText = timeLeft;
+            document.getElementById('start-menu').style.display = 'none';
+            document.getElementById('ui-layer').style.display = 'block';
+            
+            // টাইমার শুরু
+            timerInterval = setInterval(() => {
+                if (!isGameOver) {
+                    timeLeft--;
+                    document.getElementById('timer').innerText = timeLeft;
+                    if (timeLeft <= 0) checkFinalResult();
+                }
+            }, 1000);
+
+            draw();
+            setInterval(spawnObject, 700);
+        }
+
         function spawnObject() {
             if(isGameOver) return;
             const types = ['m', 'p', 'w'];
             const type = types[Math.floor(Math.random() * types.length)];
-            let img;
-            if(type === 'm') img = imgDhanerShish;
-            else if(type === 'p') img = imgShapla;
-            else img = imgWrong;
+            let img = (type === 'm') ? imgDhanerShish : (type === 'p' ? imgShapla : imgWrong);
 
             objects.push({
                 x: Math.random() * (canvas.width - 60),
-                y: -60,
-                size: 60,
-                type: type,
-                img: img
+                y: -60, size: 60, type: type, img: img
             });
         }
-
-        setInterval(spawnObject, 800);
 
         function draw() {
             if(isGameOver) return;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // প্র প্রার্থীদের ছবি নিচে ড্র করা
             ctx.drawImage(imgMirza, 20, canvas.height - 120, 80, 100);
             ctx.drawImage(imgPatwary, canvas.width - 100, canvas.height - 120, 80, 100);
 
@@ -127,55 +146,41 @@
                 let o = objects[i];
                 o.y += speed;
                 ctx.drawImage(o.img, o.x, o.y, o.size, o.size);
-
-                if(o.y > canvas.height) {
-                    objects.splice(i, 1);
-                    i--;
-                }
+                if(o.y > canvas.height) { objects.splice(i, 1); i--; }
             }
             requestAnimationFrame(draw);
         }
 
-        // টাচ বা ক্লিক হ্যান্ডলার
         function handleInput(ex, ey) {
+            if(isGameOver) return;
             for(let i = 0; i < objects.length; i++) {
                 let o = objects[i];
                 if(ex > o.x && ex < o.x + o.size && ey > o.y && ey < o.y + o.size) {
                     if(o.type === 'm') mScore++;
                     else if(o.type === 'p') pScore++;
-                    else { mScore--; pScore--; }
+                    else { mScore = Math.max(0, mScore-2); pScore = Math.max(0, pScore-2); }
                     
                     document.getElementById('m-score').innerText = mScore;
                     document.getElementById('p-score').innerText = pScore;
                     objects.splice(i, 1);
-                    checkWinner();
                     break;
                 }
             }
         }
 
-        canvas.addEventListener('touchstart', (e) => {
-            const touch = e.touches[0];
-            handleInput(touch.clientX, touch.clientY);
-        });
+        canvas.addEventListener('touchstart', (e) => handleInput(e.touches[0].clientX, e.touches[0].clientY));
+        canvas.addEventListener('mousedown', (e) => handleInput(e.clientX, e.clientY));
 
-        canvas.addEventListener('mousedown', (e) => {
-            handleInput(e.clientX, e.clientY);
-        });
-
-        function checkWinner() {
-            if(mScore >= targetScore) endLevel('মির্জা আব্বাস জয়ী!');
-            if(pScore >= targetScore) endLevel('পাটোয়ারী জয়ী!');
-        }
-
-        function endLevel(txt) {
+        function checkFinalResult() {
             isGameOver = true;
+            clearInterval(timerInterval);
             document.getElementById('game-over').style.display = 'flex';
-            document.getElementById('winner-text').innerText = txt;
+            const winText = document.getElementById('winner-text');
+            if (mScore > pScore) winText.innerText = "মির্জা আব্বাস জয়ী!";
+            else if (pScore > mScore) winText.innerText = "পাটোয়ারী জয়ী!";
+            else winText.innerText = "নির্বাচন ড্র হয়েছে!";
+            document.getElementById('final-score-details').innerText = `স্কোর - আব্বাস: ${mScore} | পাটোয়ারী: ${pScore}`;
         }
-
-        // ছবি লোড হওয়ার পর গেম শুরু
-        window.onload = draw;
     </script>
 </body>
 </html>
