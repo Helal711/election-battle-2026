@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ভোটের লড়াই - মোবাইল সংস্করণ</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #2e7d32;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .score-board {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 20px;
+            display: inline-block;
+            font-size: 18px;
+        }
+        canvas {
+            display: block;
+            background: linear-gradient(#81c784, #2e7d32);
+        }
+        #game-over {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            color: white;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            text-align: center;
+            padding: 20px;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 20px;
+            background: #ffeb3b;
+            border: none;
+            border-radius: 30px;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div class="score-board">
+            মির্জা আব্বাস: <span id="m-score">০</span> | পাটোয়ারী: <span id="p-score">০</span>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="game-over">
+        <h1 id="winner-text"></h1>
+        <button onclick="location.reload()">আবার খেলুন</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // ডিসপ্লে সাইজ সেটআপ (মোবাইল রেশিও)
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let mScore = 0;
+        let pScore = 0;
+        let isGameOver = false;
+        const targetScore = 50;
+
+        // আপনার ছবিগুলো লোড করা
+        const imgMirza = new Image(); imgMirza.src = 'mirza_abbas.png';
+        const imgPatwary = new Image(); imgPatwary.src = 'patwary.png';
+        const imgDhanerShish = new Image(); imgDhanerShish.src = 'dhaner_shish.png';
+        const imgShapla = new Image(); imgShapla.src = 'shapla_koli.png';
+        const imgWrong = new Image(); imgWrong.src = 'black_money.png';
+
+        const objects = [];
+        const speed = 4;
+
+        function spawnObject() {
+            if(isGameOver) return;
+            const types = ['m', 'p', 'w'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            let img;
+            if(type === 'm') img = imgDhanerShish;
+            else if(type === 'p') img = imgShapla;
+            else img = imgWrong;
+
+            objects.push({
+                x: Math.random() * (canvas.width - 60),
+                y: -60,
+                size: 60,
+                type: type,
+                img: img
+            });
+        }
+
+        setInterval(spawnObject, 800);
+
+        function draw() {
+            if(isGameOver) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // প্র প্রার্থীদের ছবি নিচে ড্র করা
+            ctx.drawImage(imgMirza, 20, canvas.height - 120, 80, 100);
+            ctx.drawImage(imgPatwary, canvas.width - 100, canvas.height - 120, 80, 100);
+
+            for(let i = 0; i < objects.length; i++) {
+                let o = objects[i];
+                o.y += speed;
+                ctx.drawImage(o.img, o.x, o.y, o.size, o.size);
+
+                if(o.y > canvas.height) {
+                    objects.splice(i, 1);
+                    i--;
+                }
+            }
+            requestAnimationFrame(draw);
+        }
+
+        // টাচ বা ক্লিক হ্যান্ডলার
+        function handleInput(ex, ey) {
+            for(let i = 0; i < objects.length; i++) {
+                let o = objects[i];
+                if(ex > o.x && ex < o.x + o.size && ey > o.y && ey < o.y + o.size) {
+                    if(o.type === 'm') mScore++;
+                    else if(o.type === 'p') pScore++;
+                    else { mScore--; pScore--; }
+                    
+                    document.getElementById('m-score').innerText = mScore;
+                    document.getElementById('p-score').innerText = pScore;
+                    objects.splice(i, 1);
+                    checkWinner();
+                    break;
+                }
+            }
+        }
+
+        canvas.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            handleInput(touch.clientX, touch.clientY);
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            handleInput(e.clientX, e.clientY);
+        });
+
+        function checkWinner() {
+            if(mScore >= targetScore) endLevel('মির্জা আব্বাস জয়ী!');
+            if(pScore >= targetScore) endLevel('পাটোয়ারী জয়ী!');
+        }
+
+        function endLevel(txt) {
+            isGameOver = true;
+            document.getElementById('game-over').style.display = 'flex';
+            document.getElementById('winner-text').innerText = txt;
+        }
+
+        // ছবি লোড হওয়ার পর গেম শুরু
+        window.onload = draw;
+    </script>
+</body>
+</html>
